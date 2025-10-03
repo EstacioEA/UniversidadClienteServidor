@@ -1,37 +1,38 @@
 package modelos;
 
-import java.io.Serializable;
-
 /**
  * Clase modelo para representar un estudiante
  */
-public class Estudiante implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class Estudiante {
     private int id;
     private String nombre;
     private String apellido;
-    private String carrera;
-    private int semestre;
+    private String email;
+    private int edad;
+    private int universidadId;
+    private String universidadNombre; // Para mostrar en consultas
 
     // Constructor vacío
-    public Estudiante() {}
+    public Estudiante() {
+    }
 
-    // Constructor completo
-    public Estudiante(int id, String nombre, String apellido, String carrera, int semestre) {
+    // Constructor completo con universidad
+    public Estudiante(int id, String nombre, String apellido, String email, int edad, int universidadId) {
         this.id = id;
         this.nombre = nombre;
         this.apellido = apellido;
-        this.carrera = carrera;
-        this.semestre = semestre;
+        this.email = email;
+        this.edad = edad;
+        this.universidadId = universidadId;
     }
 
-    // Constructor sin ID (para inserciones)
-    public Estudiante(String nombre, String apellido, String carrera, int semestre) {
+    // Constructor sin ID (para insertar)
+    public Estudiante(String nombre, String apellido, String email, int edad, int universidadId) {
         this.nombre = nombre;
         this.apellido = apellido;
-        this.carrera = carrera;
-        this.semestre = semestre;
+        this.email = email;
+        this.edad = edad;
+        this.universidadId = universidadId;
     }
 
     // Getters y Setters
@@ -59,25 +60,42 @@ public class Estudiante implements Serializable {
         this.apellido = apellido;
     }
 
-    public String getCarrera() {
-        return carrera;
+    public String getEmail() {
+        return email;
     }
 
-    public void setCarrera(String carrera) {
-        this.carrera = carrera;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public int getSemestre() {
-        return semestre;
+    public int getEdad() {
+        return edad;
     }
 
-    public void setSemestre(int semestre) {
-        this.semestre = semestre;
+    public void setEdad(int edad) {
+        this.edad = edad;
+    }
+
+    public int getUniversidadId() {
+        return universidadId;
+    }
+
+    public void setUniversidadId(int universidadId) {
+        this.universidadId = universidadId;
+    }
+
+    public String getUniversidadNombre() {
+        return universidadNombre;
+    }
+
+    public void setUniversidadNombre(String universidadNombre) {
+        this.universidadNombre = universidadNombre;
     }
 
     @Override
     public String toString() {
-        return "ID: " + id + " | " + nombre + " " + apellido +
-                " | Carrera: " + carrera + " | Semestre: " + semestre;
+        return String.format("ID: %d | %s %s | %s | Edad: %d | Universidad: %s",
+                id, nombre, apellido, email, edad,
+                universidadNombre != null ? universidadNombre : "ID: " + universidadId);
     }
 }

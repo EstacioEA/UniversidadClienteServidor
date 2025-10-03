@@ -18,27 +18,22 @@ public class ServidorUDP {
         ejecutando = true;
     }
 
-    /**
-     * Inicia el servidor UDP
-     */
     public void iniciar() {
         try {
             socket = new DatagramSocket(PUERTO);
             System.out.println("╔════════════════════════════════════════╗");
-            System.out.println("║\tSERVIDOR UDP INICIADO\t\t║");
-            System.out.println("║\tPuerto: " + PUERTO + "\t║");
-            System.out.println("║\tEsperando peticiones...\t\t║");
+            System.out.println("║   SERVIDOR UDP INICIADO                ║");
+            System.out.println("║   Puerto: " + PUERTO + "                        ║");
+            System.out.println("║   Esperando peticiones...              ║");
             System.out.println("╚════════════════════════════════════════╝\n");
 
             byte[] buffer = new byte[BUFFER_SIZE];
 
             while (ejecutando) {
                 try {
-                    // Recibir paquete del cliente
                     DatagramPacket paqueteRecibido = new DatagramPacket(buffer, buffer.length);
                     socket.receive(paqueteRecibido);
 
-                    // Extraer datos del paquete
                     String comando = new String(paqueteRecibido.getData(), 0,
                             paqueteRecibido.getLength());
 
@@ -49,10 +44,8 @@ public class ServidorUDP {
                             direccionCliente.getHostAddress() + ":" + puertoCliente);
                     System.out.println("📨 Comando: " + comando);
 
-                    // Procesar comando
-                    String respuesta = dbManager.procesarComando(comando);
+                    String respuesta = procesarComando(comando);
 
-                    // Enviar respuesta al cliente
                     byte[] datosRespuesta = respuesta.getBytes();
                     DatagramPacket paqueteRespuesta = new DatagramPacket(
                             datosRespuesta,
@@ -64,7 +57,6 @@ public class ServidorUDP {
                     socket.send(paqueteRespuesta);
                     System.out.println("📤 Respuesta enviada al cliente\n");
 
-                    // Limpiar buffer
                     buffer = new byte[BUFFER_SIZE];
 
                 } catch (IOException e) {
@@ -82,9 +74,101 @@ public class ServidorUDP {
         }
     }
 
-    /**
-     * Detiene el servidor
-     */
+    private String procesarComando(String comando) {
+        try {
+            if (comando == null || comando.trim().isEmpty()) {
+                return "ERROR: Comando vacío";
+            }
+
+            String[] partes = comando.split("\\|");
+
+            if (partes.length == 0) {
+                return "ERROR: Comando inválido";
+            }
+
+            String operacion = partes[0].toUpperCase();
+
+            switch (operacion) {
+                // ========== OPERACIONES UNIVERSIDADES ==========
+                case "INSERTAR_UNIVERSIDAD":
+                    if (partes.length == 4) {
+                        return dbManager.insertarUniversidad(
+                                partes[1],  // nombre
+                                partes[2],  // ciudad
+                                partes[3]   // pais
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: INSERTAR_UNIVERSIDAD|nombre|ciudad|pais";
+
+                case "CONSULTAR_UNIVERSIDADES":
+                    return dbManager.consultarUniversidades();
+
+                case "ACTUALIZAR_UNIVERSIDAD":
+                    if (partes.length == 5) {
+                        return dbManager.actualizarUniversidad(
+                                Integer.parseInt(partes[1]),  // id
+                                partes[2],  // nombre
+                                partes[3],  // ciudad
+                                partes[4]   // pais
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: ACTUALIZAR_UNIVERSIDAD|id|nombre|ciudad|pais";
+
+                case "ELIMINAR_UNIVERSIDAD":
+                    if (partes.length == 2) {
+                        return dbManager.eliminarUniversidad(Integer.parseInt(partes[1]));
+                    }
+                    return "ERROR: Formato incorrecto. Use: ELIMINAR_UNIVERSIDAD|id";
+
+                // ========== OPERACIONES ESTUDIANTES ==========
+                case "INSERTAR_ESTUDIANTE":
+                    if (partes.length == 6) {
+                        return dbManager.insertarEstudiante(
+                                partes[1],  // nombre
+                                partes[2],  // apellido
+                                partes[3],  // email
+                                Integer.parseInt(partes[4]),  // edad
+                                Integer.parseInt(partes[5])   // universidad_id
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: INSERTAR_ESTUDIANTE|nombre|apellido|email|edad|universidad_id";
+
+                case "CONSULTAR_ESTUDIANTES":
+                    return dbManager.consultarEstudiantes();
+
+                case "ACTUALIZAR_ESTUDIANTE":
+                    if (partes.length == 7) {
+                        return dbManager.actualizarEstudiante(
+                                Integer.parseInt(partes[1]),  // id
+                                partes[2],  // nombre
+                                partes[3],  // apellido
+                                partes[4],  // email
+                                Integer.parseInt(partes[5]),  // edad
+                                Integer.parseInt(partes[6])   // universidad_id
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: ACTUALIZAR_ESTUDIANTE|id|nombre|apellido|email|edad|universidad_id";
+
+                case "ELIMINAR_ESTUDIANTE":
+                    if (partes.length == 2) {
+                        return dbManager.eliminarEstudiante(Integer.parseInt(partes[1]));
+                    }
+                    return "ERROR: Formato incorrecto. Use: ELIMINAR_ESTUDIANTE|id";
+
+                case "SALIR":
+                    return "✓ Conexión cerrada";
+
+                default:
+                    return "ERROR: Comando no reconocido: " + operacion;
+            }
+
+        } catch (NumberFormatException e) {
+            return "ERROR: Formato de número inválido";
+        } catch (Exception e) {
+            return "ERROR: Error al procesar comando - " + e.getMessage();
+        }
+    }
+
     public void detener() {
         ejecutando = false;
         if (socket != null && !socket.isClosed()) {
@@ -94,13 +178,9 @@ public class ServidorUDP {
         System.out.println("\n✓ Servidor UDP detenido");
     }
 
-    /**
-     * Método main para ejecutar el servidor
-     */
     public static void main(String[] args) {
         ServidorUDP servidor = new ServidorUDP();
 
-        // Agregar shutdown hook para cerrar limpiamente
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\n⚠ Cerrando servidor...");
             servidor.detener();

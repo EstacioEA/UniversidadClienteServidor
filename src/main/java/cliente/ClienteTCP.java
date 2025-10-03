@@ -8,7 +8,7 @@ import java.util.Scanner;
  * Cliente TCP para comunicarse con el servidor
  */
 public class ClienteTCP {
-    private static final String HOST = "localhost"; // Cambiar por IP del servidor si es necesario
+    private static final String HOST = "localhost";
     private static final int PUERTO = 5000;
 
     private Socket socket;
@@ -20,9 +20,6 @@ public class ClienteTCP {
         scanner = new Scanner(System.in);
     }
 
-    /**
-     * Conecta con el servidor
-     */
     public boolean conectar() {
         try {
             socket = new Socket(HOST, PUERTO);
@@ -38,29 +35,22 @@ public class ClienteTCP {
         }
     }
 
-    /**
-     * Envía un comando al servidor y recibe la respuesta
-     */
     public String enviarComando(String comando) {
         try {
             salida.println(comando);
 
-            // Leer respuesta (puede ser multilínea)
             StringBuilder respuesta = new StringBuilder();
             String linea;
 
-            // Para comandos de consulta que devuelven múltiples líneas
             if (comando.startsWith("CONSULTAR")) {
                 while ((linea = entrada.readLine()) != null) {
                     respuesta.append(linea).append("\n");
-                    // Terminar cuando se recibe la línea de total o error
                     if (linea.startsWith("Total:") || linea.startsWith("ERROR:") ||
-                            linea.contains("No hay estudiantes")) {
+                            linea.contains("No hay")) {
                         break;
                     }
                 }
             } else {
-                // Para otros comandos, leer una sola línea
                 linea = entrada.readLine();
                 if (linea != null) {
                     respuesta.append(linea);
@@ -74,26 +64,95 @@ public class ClienteTCP {
         }
     }
 
-    /**
-     * Muestra el menú interactivo
-     */
     public void mostrarMenu() {
         boolean continuar = true;
 
         while (continuar) {
             System.out.println("\n╔══════════════════════════════════════════╗");
-            System.out.println("║        CLIENTE TCP - MENÚ PRINCIPAL      ║");
+            System.out.println("║     CLIENTE TCP - MENÚ PRINCIPAL         ║");
+            System.out.println("╠══════════════════════════════════════════╣");
+            System.out.println("║  1. Gestionar Universidades              ║");
+            System.out.println("║  2. Gestionar Estudiantes                ║");
+            System.out.println("║  3. Salir                                ║");
+            System.out.println("╚══════════════════════════════════════════╝");
+            System.out.print("Seleccione una opción: ");
+
+            int opcion = scanner.nextInt();
+            scanner.nextLine();
+
+            switch (opcion) {
+                case 1:
+                    menuUniversidades();
+                    break;
+                case 2:
+                    menuEstudiantes();
+                    break;
+                case 3:
+                    continuar = false;
+                    break;
+                default:
+                    System.out.println("⚠ Opción no válida");
+            }
+        }
+    }
+
+    private void menuUniversidades() {
+        boolean continuar = true;
+
+        while (continuar) {
+            System.out.println("\n╔══════════════════════════════════════════╗");
+            System.out.println("║       GESTIÓN DE UNIVERSIDADES           ║");
+            System.out.println("╠══════════════════════════════════════════╣");
+            System.out.println("║  1. Insertar Universidad                 ║");
+            System.out.println("║  2. Consultar Universidades              ║");
+            System.out.println("║  3. Actualizar Universidad               ║");
+            System.out.println("║  4. Eliminar Universidad                 ║");
+            System.out.println("║  5. Volver al menú principal             ║");
+            System.out.println("╚══════════════════════════════════════════╝");
+            System.out.print("Seleccione una opción: ");
+
+            int opcion = scanner.nextInt();
+            scanner.nextLine();
+
+            switch (opcion) {
+                case 1:
+                    insertarUniversidad();
+                    break;
+                case 2:
+                    consultarUniversidades();
+                    break;
+                case 3:
+                    actualizarUniversidad();
+                    break;
+                case 4:
+                    eliminarUniversidad();
+                    break;
+                case 5:
+                    continuar = false;
+                    break;
+                default:
+                    System.out.println("⚠ Opción no válida");
+            }
+        }
+    }
+
+    private void menuEstudiantes() {
+        boolean continuar = true;
+
+        while (continuar) {
+            System.out.println("\n╔══════════════════════════════════════════╗");
+            System.out.println("║        GESTIÓN DE ESTUDIANTES            ║");
             System.out.println("╠══════════════════════════════════════════╣");
             System.out.println("║  1. Insertar Estudiante                  ║");
             System.out.println("║  2. Consultar Estudiantes                ║");
             System.out.println("║  3. Actualizar Estudiante                ║");
             System.out.println("║  4. Eliminar Estudiante                  ║");
-            System.out.println("║  5. Salir                                ║");
+            System.out.println("║  5. Volver al menú principal             ║");
             System.out.println("╚══════════════════════════════════════════╝");
             System.out.print("Seleccione una opción: ");
 
             int opcion = scanner.nextInt();
-            scanner.nextLine(); // Limpiar buffer
+            scanner.nextLine();
 
             switch (opcion) {
                 case 1:
@@ -117,9 +176,63 @@ public class ClienteTCP {
         }
     }
 
-    /**
-     * Inserta un nuevo estudiante
-     */
+    // ========== MÉTODOS UNIVERSIDADES ==========
+    private void insertarUniversidad() {
+        System.out.println("\n--- INSERTAR UNIVERSIDAD ---");
+        System.out.print("Nombre: ");
+        String nombre = scanner.nextLine();
+
+        System.out.print("Ciudad: ");
+        String ciudad = scanner.nextLine();
+
+        System.out.print("País: ");
+        String pais = scanner.nextLine();
+
+        String comando = String.format("INSERTAR_UNIVERSIDAD|%s|%s|%s",
+                nombre, ciudad, pais);
+        String respuesta = enviarComando(comando);
+        System.out.println("\n" + respuesta);
+    }
+
+    private void consultarUniversidades() {
+        System.out.println("\n--- CONSULTAR UNIVERSIDADES ---");
+        String respuesta = enviarComando("CONSULTAR_UNIVERSIDADES");
+        System.out.println("\n" + respuesta);
+    }
+
+    private void actualizarUniversidad() {
+        System.out.println("\n--- ACTUALIZAR UNIVERSIDAD ---");
+        System.out.print("ID de la universidad a actualizar: ");
+        int id = scanner.nextInt();
+        scanner.nextLine();
+
+        System.out.print("Nuevo nombre: ");
+        String nombre = scanner.nextLine();
+
+        System.out.print("Nueva ciudad: ");
+        String ciudad = scanner.nextLine();
+
+        System.out.print("Nuevo país: ");
+        String pais = scanner.nextLine();
+
+        String comando = String.format("ACTUALIZAR_UNIVERSIDAD|%d|%s|%s|%s",
+                id, nombre, ciudad, pais);
+        String respuesta = enviarComando(comando);
+        System.out.println("\n" + respuesta);
+    }
+
+    private void eliminarUniversidad() {
+        System.out.println("\n--- ELIMINAR UNIVERSIDAD ---");
+        System.out.print("ID de la universidad a eliminar: ");
+        int id = scanner.nextInt();
+        scanner.nextLine();
+
+        String comando = String.format("ELIMINAR_UNIVERSIDAD|%d", id);
+        String respuesta = enviarComando(comando);
+        System.out.println("\n" + respuesta);
+    }
+
+    // ========== MÉTODOS ESTUDIANTES ==========
     private void insertarEstudiante() {
         System.out.println("\n--- INSERTAR ESTUDIANTE ---");
         System.out.print("Nombre: ");
@@ -128,36 +241,33 @@ public class ClienteTCP {
         System.out.print("Apellido: ");
         String apellido = scanner.nextLine();
 
-        System.out.print("Carrera: ");
-        String carrera = scanner.nextLine();
+        System.out.print("Email: ");
+        String email = scanner.nextLine();
 
-        System.out.print("Semestre: ");
-        int semestre = scanner.nextInt();
-        scanner.nextLine(); // Limpiar buffer
+        System.out.print("Edad: ");
+        int edad = scanner.nextInt();
 
-        String comando = String.format("INSERTAR|%s|%s|%s|%d",
-                nombre, apellido, carrera, semestre);
+        System.out.print("ID de Universidad: ");
+        int universidadId = scanner.nextInt();
+        scanner.nextLine();
+
+        String comando = String.format("INSERTAR_ESTUDIANTE|%s|%s|%s|%d|%d",
+                nombre, apellido, email, edad, universidadId);
         String respuesta = enviarComando(comando);
         System.out.println("\n" + respuesta);
     }
 
-    /**
-     * Consulta todos los estudiantes
-     */
     private void consultarEstudiantes() {
         System.out.println("\n--- CONSULTAR ESTUDIANTES ---");
-        String respuesta = enviarComando("CONSULTAR");
+        String respuesta = enviarComando("CONSULTAR_ESTUDIANTES");
         System.out.println("\n" + respuesta);
     }
 
-    /**
-     * Actualiza un estudiante existente
-     */
     private void actualizarEstudiante() {
         System.out.println("\n--- ACTUALIZAR ESTUDIANTE ---");
         System.out.print("ID del estudiante a actualizar: ");
         int id = scanner.nextInt();
-        scanner.nextLine(); // Limpiar buffer
+        scanner.nextLine();
 
         System.out.print("Nuevo nombre: ");
         String nombre = scanner.nextLine();
@@ -165,36 +275,33 @@ public class ClienteTCP {
         System.out.print("Nuevo apellido: ");
         String apellido = scanner.nextLine();
 
-        System.out.print("Nueva carrera: ");
-        String carrera = scanner.nextLine();
+        System.out.print("Nuevo email: ");
+        String email = scanner.nextLine();
 
-        System.out.print("Nuevo semestre: ");
-        int semestre = scanner.nextInt();
-        scanner.nextLine(); // Limpiar buffer
+        System.out.print("Nueva edad: ");
+        int edad = scanner.nextInt();
 
-        String comando = String.format("ACTUALIZAR|%d|%s|%s|%s|%d",
-                id, nombre, apellido, carrera, semestre);
+        System.out.print("Nuevo ID de Universidad: ");
+        int universidadId = scanner.nextInt();
+        scanner.nextLine();
+
+        String comando = String.format("ACTUALIZAR_ESTUDIANTE|%d|%s|%s|%s|%d|%d",
+                id, nombre, apellido, email, edad, universidadId);
         String respuesta = enviarComando(comando);
         System.out.println("\n" + respuesta);
     }
 
-    /**
-     * Elimina un estudiante
-     */
     private void eliminarEstudiante() {
         System.out.println("\n--- ELIMINAR ESTUDIANTE ---");
         System.out.print("ID del estudiante a eliminar: ");
         int id = scanner.nextInt();
-        scanner.nextLine(); // Limpiar buffer
+        scanner.nextLine();
 
-        String comando = String.format("ELIMINAR|%d", id);
+        String comando = String.format("ELIMINAR_ESTUDIANTE|%d", id);
         String respuesta = enviarComando(comando);
         System.out.println("\n" + respuesta);
     }
 
-    /**
-     * Cierra la conexión
-     */
     public void desconectar() {
         try {
             if (salida != null) {
@@ -210,13 +317,9 @@ public class ClienteTCP {
         }
     }
 
-    /**
-     * Método main
-     */
     public static void main(String[] args) {
         ClienteTCP cliente = new ClienteTCP();
 
-        // Agregar shutdown hook para cerrar correctamente
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\nCerrando cliente...");
             cliente.desconectar();

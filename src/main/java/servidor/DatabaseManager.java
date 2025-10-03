@@ -1,73 +1,56 @@
 package servidor;
 
-import modelo.Estudiante;
 import java.sql.*;
-import java.util.*;
 
 /**
- * Clase para gestionar las operaciones de base de datos
+ * Clase para manejar la conexión y operaciones con PostgreSQL
  */
 public class DatabaseManager {
-    private static final String URL = "jdbc:postgresql://192.168.131.22:5432/Universidad_db";
-    private static final String USER = "postgres";
+    private static final String URL = "jdbc:postgresql://192.168.131.22:5432/universidad_db";
+    private static final String USUARIO = "postgres";
     private static final String PASSWORD = "postgres";
 
-    private Connection connection;
+    private Connection conexion;
 
-    // Constructor
     public DatabaseManager() {
         conectar();
-        crearTablaEstudiantes();
     }
 
     /**
-     * Establece conexión con la base de datos
+     * Establece la conexión a la base de datos
      */
     private void conectar() {
         try {
-            Class.forName("org.postgresql.Driver");
-            connection = DriverManager.getConnection(URL, USER, PASSWORD);
-            System.out.println("✓ Conexión a la base de datos exitosa");
-        } catch (ClassNotFoundException e) {
-            System.err.println("✗ Driver PostgreSQL no encontrado");
-            e.printStackTrace();
+            conexion = DriverManager.getConnection(URL, USUARIO, PASSWORD);
+            System.out.println("✓ Conexión a base de datos establecida");
         } catch (SQLException e) {
-            System.err.println("✗ Error al conectar a la base de datos");
-            e.printStackTrace();
+            System.err.println("✗ Error al conectar con la base de datos: " + e.getMessage());
         }
     }
 
     /**
-     * Crea la tabla estudiantes si no existe
+     * Obtiene una conexión a la base de datos
      */
-    private void crearTablaEstudiantes() {
-        String sql = "CREATE TABLE IF NOT EXISTS estudiantes (" +
-                "id SERIAL PRIMARY KEY," +
-                "nombre VARCHAR(100) NOT NULL," +
-                "apellido VARCHAR(100) NOT NULL," +
-                "carrera VARCHAR(100) NOT NULL," +
-                "semestre INTEGER NOT NULL)";
-
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(sql);
-            System.out.println("✓ Tabla estudiantes verificada/creada");
-        } catch (SQLException e) {
-            System.err.println("✗ Error al crear tabla");
-            e.printStackTrace();
+    private Connection obtenerConexion() throws SQLException {
+        if (conexion == null || conexion.isClosed()) {
+            conectar();
         }
+        return conexion;
     }
 
-    /**
-     * Inserta un nuevo estudiante
-     */
-    public String insertarEstudiante(Estudiante estudiante) {
-        String sql = "INSERT INTO estudiantes (nombre, apellido, carrera, semestre) VALUES (?, ?, ?, ?)";
+    // ==================== OPERACIONES UNIVERSIDADES ====================
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            pstmt.setString(1, estudiante.getNombre());
-            pstmt.setString(2, estudiante.getApellido());
-            pstmt.setString(3, estudiante.getCarrera());
-            pstmt.setInt(4, estudiante.getSemestre());
+    /**
+     * Inserta una nueva universidad
+     */
+    public String insertarUniversidad(String nombre, String ciudad, String pais) {
+        String sql = "INSERT INTO universidades (nombre, ciudad, pais) VALUES (?, ?, ?)";
+
+        try (PreparedStatement pstmt = obtenerConexion().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setString(1, nombre);
+            pstmt.setString(2, ciudad);
+            pstmt.setString(3, pais);
 
             int filasAfectadas = pstmt.executeUpdate();
 
@@ -75,132 +58,229 @@ public class DatabaseManager {
                 ResultSet rs = pstmt.getGeneratedKeys();
                 if (rs.next()) {
                     int id = rs.getInt(1);
-                    return "SUCCESS: Estudiante insertado con ID: " + id;
+                    return "✓ Universidad insertada exitosamente con ID: " + id;
                 }
             }
-            return "ERROR: No se pudo insertar el estudiante";
+            return "✓ Universidad insertada exitosamente";
+
         } catch (SQLException e) {
             return "ERROR: " + e.getMessage();
         }
     }
 
     /**
-     * Consulta todos los estudiantes
+     * Consulta todas las universidades
      */
-    public String consultarEstudiantes() {
-        String sql = "SELECT * FROM estudiantes ORDER BY id";
+    public String consultarUniversidades() {
+        String sql = "SELECT * FROM universidades ORDER BY id";
         StringBuilder resultado = new StringBuilder();
 
-        try (Statement stmt = connection.createStatement();
+        try (Statement stmt = obtenerConexion().createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
-            resultado.append("=== LISTA DE ESTUDIANTES ===\n");
-            int contador = 0;
+            int count = 0;
+            resultado.append("═══════════════════════════════════════════════════════════\n");
+            resultado.append("                    LISTA DE UNIVERSIDADES\n");
+            resultado.append("═══════════════════════════════════════════════════════════\n");
 
             while (rs.next()) {
-                contador++;
-                resultado.append(String.format("ID: %d | %s %s | Carrera: %s | Semestre: %d\n",
+                count++;
+                resultado.append(String.format("ID: %-4d | %-30s | %-20s | %s\n",
                         rs.getInt("id"),
                         rs.getString("nombre"),
-                        rs.getString("apellido"),
-                        rs.getString("carrera"),
-                        rs.getInt("semestre")));
+                        rs.getString("ciudad"),
+                        rs.getString("pais")));
             }
 
-            if (contador == 0) {
-                resultado.append("No hay estudiantes registrados\n");
-            } else {
-                resultado.append("Total: ").append(contador).append(" estudiante(s)\n");
+            resultado.append("═══════════════════════════════════════════════════════════\n");
+            resultado.append(String.format("Total: %d universidad(es)\n", count));
+
+            if (count == 0) {
+                return "No hay universidades registradas en la base de datos.";
             }
 
             return resultado.toString();
+
         } catch (SQLException e) {
             return "ERROR: " + e.getMessage();
         }
     }
 
     /**
-     * Actualiza un estudiante por ID
+     * Actualiza una universidad existente
      */
-    public String actualizarEstudiante(Estudiante estudiante) {
-        String sql = "UPDATE estudiantes SET nombre=?, apellido=?, carrera=?, semestre=? WHERE id=?";
+    public String actualizarUniversidad(int id, String nombre, String ciudad, String pais) {
+        String sql = "UPDATE universidades SET nombre = ?, ciudad = ?, pais = ? WHERE id = ?";
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, estudiante.getNombre());
-            pstmt.setString(2, estudiante.getApellido());
-            pstmt.setString(3, estudiante.getCarrera());
-            pstmt.setInt(4, estudiante.getSemestre());
-            pstmt.setInt(5, estudiante.getId());
+        try (PreparedStatement pstmt = obtenerConexion().prepareStatement(sql)) {
+
+            pstmt.setString(1, nombre);
+            pstmt.setString(2, ciudad);
+            pstmt.setString(3, pais);
+            pstmt.setInt(4, id);
 
             int filasAfectadas = pstmt.executeUpdate();
 
             if (filasAfectadas > 0) {
-                return "SUCCESS: Estudiante actualizado correctamente";
+                return "✓ Universidad actualizada exitosamente";
             } else {
-                return "ERROR: No se encontró estudiante con ID: " + estudiante.getId();
+                return "⚠ No se encontró ninguna universidad con ID: " + id;
             }
+
         } catch (SQLException e) {
             return "ERROR: " + e.getMessage();
         }
     }
 
     /**
-     * Elimina un estudiante por ID
+     * Elimina una universidad
+     */
+    public String eliminarUniversidad(int id) {
+        String sql = "DELETE FROM universidades WHERE id = ?";
+
+        try (PreparedStatement pstmt = obtenerConexion().prepareStatement(sql)) {
+
+            pstmt.setInt(1, id);
+            int filasAfectadas = pstmt.executeUpdate();
+
+            if (filasAfectadas > 0) {
+                return "✓ Universidad eliminada exitosamente";
+            } else {
+                return "⚠ No se encontró ninguna universidad con ID: " + id;
+            }
+
+        } catch (SQLException e) {
+            return "ERROR: " + e.getMessage();
+        }
+    }
+
+    // ==================== OPERACIONES ESTUDIANTES ====================
+
+    /**
+     * Inserta un nuevo estudiante
+     */
+    public String insertarEstudiante(String nombre, String apellido, String email, int edad, int universidadId) {
+        String sql = "INSERT INTO estudiantes (nombre, apellido, email, edad, universidad_id) VALUES (?, ?, ?, ?, ?)";
+
+        try (PreparedStatement pstmt = obtenerConexion().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setString(1, nombre);
+            pstmt.setString(2, apellido);
+            pstmt.setString(3, email);
+            pstmt.setInt(4, edad);
+            pstmt.setInt(5, universidadId);
+
+            int filasAfectadas = pstmt.executeUpdate();
+
+            if (filasAfectadas > 0) {
+                ResultSet rs = pstmt.getGeneratedKeys();
+                if (rs.next()) {
+                    int id = rs.getInt(1);
+                    return "✓ Estudiante insertado exitosamente con ID: " + id;
+                }
+            }
+            return "✓ Estudiante insertado exitosamente";
+
+        } catch (SQLException e) {
+            return "ERROR: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Consulta todos los estudiantes con su universidad
+     */
+    public String consultarEstudiantes() {
+        String sql = "SELECT e.id, e.nombre, e.apellido, e.email, e.edad, e.universidad_id, u.nombre as universidad_nombre " +
+                "FROM estudiantes e " +
+                "LEFT JOIN universidades u ON e.universidad_id = u.id " +
+                "ORDER BY e.id";
+        StringBuilder resultado = new StringBuilder();
+
+        try (Statement stmt = obtenerConexion().createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            int count = 0;
+            resultado.append("═══════════════════════════════════════════════════════════════════════════════\n");
+            resultado.append("                           LISTA DE ESTUDIANTES\n");
+            resultado.append("═══════════════════════════════════════════════════════════════════════════════\n");
+
+            while (rs.next()) {
+                count++;
+                String universidad = rs.getString("universidad_nombre");
+                if (universidad == null) {
+                    universidad = "Sin asignar";
+                }
+
+                resultado.append(String.format("ID: %-4d | %-15s %-15s | %-25s | Edad: %-3d | %s\n",
+                        rs.getInt("id"),
+                        rs.getString("nombre"),
+                        rs.getString("apellido"),
+                        rs.getString("email"),
+                        rs.getInt("edad"),
+                        universidad));
+            }
+
+            resultado.append("═══════════════════════════════════════════════════════════════════════════════\n");
+            resultado.append(String.format("Total: %d estudiante(s)\n", count+1));
+
+            if (count == 0) {
+                return "No hay estudiantes registrados en la base de datos.";
+            }
+
+            return resultado.toString();
+
+        } catch (SQLException e) {
+            return "ERROR: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Actualiza un estudiante existente
+     */
+    public String actualizarEstudiante(int id, String nombre, String apellido, String email, int edad, int universidadId) {
+        String sql = "UPDATE estudiantes SET nombre = ?, apellido = ?, email = ?, edad = ?, universidad_id = ? WHERE id = ?";
+
+        try (PreparedStatement pstmt = obtenerConexion().prepareStatement(sql)) {
+
+            pstmt.setString(1, nombre);
+            pstmt.setString(2, apellido);
+            pstmt.setString(3, email);
+            pstmt.setInt(4, edad);
+            pstmt.setInt(5, universidadId);
+            pstmt.setInt(6, id);
+
+            int filasAfectadas = pstmt.executeUpdate();
+
+            if (filasAfectadas > 0) {
+                return "✓ Estudiante actualizado exitosamente";
+            } else {
+                return "⚠ No se encontró ningún estudiante con ID: " + id;
+            }
+
+        } catch (SQLException e) {
+            return "ERROR: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Elimina un estudiante
      */
     public String eliminarEstudiante(int id) {
-        String sql = "DELETE FROM estudiantes WHERE id=?";
+        String sql = "DELETE FROM estudiantes WHERE id = ?";
 
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = obtenerConexion().prepareStatement(sql)) {
+
             pstmt.setInt(1, id);
-
             int filasAfectadas = pstmt.executeUpdate();
 
             if (filasAfectadas > 0) {
-                return "SUCCESS: Estudiante eliminado correctamente";
+                return "✓ Estudiante eliminado exitosamente";
             } else {
-                return "ERROR: No se encontró estudiante con ID: " + id;
+                return "⚠ No se encontró ningún estudiante con ID: " + id;
             }
+
         } catch (SQLException e) {
             return "ERROR: " + e.getMessage();
-        }
-    }
-
-    /**
-     * Procesa comandos recibidos del cliente
-     */
-    public String procesarComando(String comando) {
-        String[] partes = comando.split("\\|");
-        String operacion = partes[0];
-
-        switch (operacion) {
-            case "INSERTAR":
-                if (partes.length == 5) {
-                    Estudiante est = new Estudiante(partes[1], partes[2], partes[3],
-                            Integer.parseInt(partes[4]));
-                    return insertarEstudiante(est);
-                }
-                return "ERROR: Formato incorrecto";
-
-            case "CONSULTAR":
-                return consultarEstudiantes();
-
-            case "ACTUALIZAR":
-                if (partes.length == 6) {
-                    Estudiante est = new Estudiante(Integer.parseInt(partes[1]),
-                            partes[2], partes[3], partes[4],
-                            Integer.parseInt(partes[5]));
-                    return actualizarEstudiante(est);
-                }
-                return "ERROR: Formato incorrecto";
-
-            case "ELIMINAR":
-                if (partes.length == 2) {
-                    return eliminarEstudiante(Integer.parseInt(partes[1]));
-                }
-                return "ERROR: Formato incorrecto";
-
-            default:
-                return "ERROR: Operación no reconocida";
         }
     }
 
@@ -209,13 +289,12 @@ public class DatabaseManager {
      */
     public void cerrarConexion() {
         try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                System.out.println("✓ Conexión cerrada");
+            if (conexion != null && !conexion.isClosed()) {
+                conexion.close();
+                System.out.println("✓ Conexión a base de datos cerrada");
             }
         } catch (SQLException e) {
-            System.err.println("✗ Error al cerrar conexión");
-            e.printStackTrace();
+            System.err.println("✗ Error al cerrar conexión: " + e.getMessage());
         }
     }
 }

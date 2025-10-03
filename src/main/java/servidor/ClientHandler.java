@@ -5,7 +5,6 @@ import java.net.Socket;
 
 /**
  * Clase para manejar cada cliente TCP en un hilo separado
- * Permite que el servidor atienda múltiples clientes simultáneamente
  */
 public class ClientHandler implements Runnable {
     private Socket socket;
@@ -14,24 +13,15 @@ public class ClientHandler implements Runnable {
     private PrintWriter salida;
     private String direccionCliente;
 
-    /**
-     * Constructor
-     * @param socket Socket del cliente conectado
-     * @param dbManager Instancia del gestor de base de datos
-     */
     public ClientHandler(Socket socket, DatabaseManager dbManager) {
         this.socket = socket;
         this.dbManager = dbManager;
         this.direccionCliente = socket.getInetAddress().getHostAddress() + ":" + socket.getPort();
     }
 
-    /**
-     * Método principal que se ejecuta en el hilo
-     */
     @Override
     public void run() {
         try {
-            // Inicializar streams de entrada y salida
             entrada = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             salida = new PrintWriter(socket.getOutputStream(), true);
 
@@ -39,22 +29,17 @@ public class ClientHandler implements Runnable {
 
             String mensajeCliente;
 
-            // Bucle principal de comunicación con el cliente
             while ((mensajeCliente = entrada.readLine()) != null) {
                 System.out.println("📨 [" + direccionCliente + "] Comando recibido: " + mensajeCliente);
 
-                // Si el cliente envía SALIR, terminar la conexión
                 if (mensajeCliente.equals("SALIR")) {
                     salida.println("SUCCESS: Conexión cerrada por el servidor. ¡Hasta pronto!");
                     System.out.println("👋 [" + direccionCliente + "] Cliente solicitó desconexión");
                     break;
                 }
 
-                // Procesar el comando y obtener respuesta
                 String respuesta = procesarComando(mensajeCliente);
-
-                // Enviar respuesta al cliente
-                salida.println(respuesta);
+                enviarRespuesta(respuesta);
                 System.out.println("📤 [" + direccionCliente + "] Respuesta enviada\n");
             }
 
@@ -65,53 +50,123 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    /**
-     * Procesa los comandos recibidos del cliente
-     * @param comando Comando en formato: OPERACION|param1|param2|...
-     * @return Respuesta del servidor
-     */
     private String procesarComando(String comando) {
         try {
-            // Validar que el comando no esté vacío
             if (comando == null || comando.trim().isEmpty()) {
                 return "ERROR: Comando vacío";
             }
 
-            // Delegar el procesamiento al DatabaseManager
-            String respuesta = dbManager.procesarComando(comando);
+            String[] partes = comando.split("\\|");
 
-            return respuesta;
+            if (partes.length == 0) {
+                return "ERROR: Comando inválido";
+            }
 
+            String operacion = partes[0].toUpperCase();
+
+            switch (operacion) {
+                // ========== OPERACIONES UNIVERSIDADES ==========
+                case "INSERTAR_UNIVERSIDAD":
+                    if (partes.length == 4) {
+                        return dbManager.insertarUniversidad(
+                                partes[1],  // nombre
+                                partes[2],  // ciudad
+                                partes[3]   // pais
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: INSERTAR_UNIVERSIDAD|nombre|ciudad|pais";
+
+                case "CONSULTAR_UNIVERSIDADES":
+                    return dbManager.consultarUniversidades();
+
+                case "ACTUALIZAR_UNIVERSIDAD":
+                    if (partes.length == 5) {
+                        return dbManager.actualizarUniversidad(
+                                Integer.parseInt(partes[1]),  // id
+                                partes[2],  // nombre
+                                partes[3],  // ciudad
+                                partes[4]   // pais
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: ACTUALIZAR_UNIVERSIDAD|id|nombre|ciudad|pais";
+
+                case "ELIMINAR_UNIVERSIDAD":
+                    if (partes.length == 2) {
+                        return dbManager.eliminarUniversidad(Integer.parseInt(partes[1]));
+                    }
+                    return "ERROR: Formato incorrecto. Use: ELIMINAR_UNIVERSIDAD|id";
+
+                // ========== OPERACIONES ESTUDIANTES ==========
+                case "INSERTAR_ESTUDIANTE":
+                    if (partes.length == 6) {
+                        return dbManager.insertarEstudiante(
+                                partes[1],  // nombre
+                                partes[2],  // apellido
+                                partes[3],  // email
+                                Integer.parseInt(partes[4]),  // edad
+                                Integer.parseInt(partes[5])   // universidad_id
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: INSERTAR_ESTUDIANTE|nombre|apellido|email|edad|universidad_id";
+
+                case "CONSULTAR_ESTUDIANTES":
+                    return dbManager.consultarEstudiantes();
+
+                case "ACTUALIZAR_ESTUDIANTE":
+                    if (partes.length == 7) {
+                        return dbManager.actualizarEstudiante(
+                                Integer.parseInt(partes[1]),  // id
+                                partes[2],  // nombre
+                                partes[3],  // apellido
+                                partes[4],  // email
+                                Integer.parseInt(partes[5]),  // edad
+                                Integer.parseInt(partes[6])   // universidad_id
+                        );
+                    }
+                    return "ERROR: Formato incorrecto. Use: ACTUALIZAR_ESTUDIANTE|id|nombre|apellido|email|edad|universidad_id";
+
+                case "ELIMINAR_ESTUDIANTE":
+                    if (partes.length == 2) {
+                        return dbManager.eliminarEstudiante(Integer.parseInt(partes[1]));
+                    }
+                    return "ERROR: Formato incorrecto. Use: ELIMINAR_ESTUDIANTE|id";
+
+                default:
+                    return "ERROR: Comando no reconocido: " + operacion;
+            }
+
+        } catch (NumberFormatException e) {
+            return "ERROR: Formato de número inválido";
         } catch (Exception e) {
             return "ERROR: Error al procesar comando - " + e.getMessage();
         }
     }
 
-    /**
-     * Cierra todos los recursos asociados a este cliente
-     */
+    private void enviarRespuesta(String respuesta) {
+        if (respuesta.contains("\n")) {
+            String[] lineas = respuesta.split("\n");
+            for (String linea : lineas) {
+                salida.println(linea);
+            }
+        } else {
+            salida.println(respuesta);
+        }
+        salida.flush();
+    }
+
     private void cerrarConexion() {
         try {
-            if (entrada != null) {
-                entrada.close();
-            }
-            if (salida != null) {
-                salida.close();
-            }
+            if (entrada != null) entrada.close();
+            if (salida != null) salida.close();
             if (socket != null && !socket.isClosed()) {
                 socket.close();
             }
             System.out.println("← [" + direccionCliente + "] Cliente desconectado\n");
-
         } catch (IOException e) {
             System.err.println("✗ [" + direccionCliente + "] Error al cerrar conexión: " + e.getMessage());
         }
     }
 
-    /**
-     * Obtiene la dirección del cliente
-     * @return String con la dirección IP y puerto del cliente
-     */
     public String getDireccionCliente() {
         return direccionCliente;
     }
